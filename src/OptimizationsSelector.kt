@@ -1,267 +1,18 @@
+import java.io.File
+import java.io.InputStream
+import java.io.PrintStream
+import java.lang.Runtime.getRuntime
+import java.util.*
 import kotlin.random.Random
 import kotlin.streams.toList
+import kotlin.system.exitProcess
 import kotlin.test.assertEquals
 
-val optimizations = listOf(
-    "tti",
-    "tbaa",
-    "scoped-noalias",
-    "assumption-cache-tracker",
-    "targetlibinfo",
-    "verify",
-    "ee-instrument",
-    "simplifycfg",
-    "domtree",
-    "sroa",
-    "early-cse",
-    "lower-expect",
-    "targetlibinfo",
-    "tti",
-    "tbaa",
-    "scoped-noalias",
-    "assumption-cache-tracker",
-    "profile-summary-info",
-    "forceattrs",
-    "inferattrs",
-    "callsite-splitting",
-    "ipsccp",
-    "called-value-propagation",
-    "globalopt",
-    "domtree",
-    "mem2reg",
-    "deadargelim",
-    "domtree",
-    "basicaa",
-    "aa",
-    "loops",
-    "lazy-branch-prob",
-    "lazy-block-freq",
-    "opt-remark-emitter",
-    "instcombine",
-    "simplifycfg",
-    "basiccg",
-    "globals-aa",
-    "prune-eh",
-    "inline",
-    "functionattrs",
-    "argpromotion",
-    "domtree",
-    "sroa",
-    "basicaa",
-    "aa",
-    "memoryssa",
-    "early-cse-memssa",
-    "speculative-execution",
-    "domtree",
-    "basicaa",
-    "aa",
-    "lazy-value-info",
-    "jump-threading",
-    "lazy-value-info",
-    "correlated-propagation",
-    "simplifycfg",
-    "domtree",
-    "basicaa",
-    "aa",
-    "loops",
-    "lazy-branch-prob",
-    "lazy-block-freq",
-    "opt-remark-emitter",
-    "instcombine",
-    "libcalls-shrinkwrap",
-    "loops",
-    "branch-prob",
-    "block-freq",
-    "lazy-branch-prob",
-    "lazy-block-freq",
-    "opt-remark-emitter",
-    "pgo-memop-opt",
-    "domtree",
-    "basicaa",
-    "aa",
-    "loops",
-    "lazy-branch-prob",
-    "lazy-block-freq",
-    "opt-remark-emitter",
-    "tailcallelim",
-    "simplifycfg",
-    "reassociate",
-    "domtree",
-    "loops",
-    "loop-simplify",
-    "lcssa-verification",
-    "lcssa",
-    "basicaa",
-    "aa",
-    "scalar-evolution",
-    "loop-rotate",
-    "licm",
-    "loop-unswitch",
-    "simplifycfg",
-    "domtree",
-    "basicaa",
-    "aa",
-    "loops",
-    "lazy-branch-prob",
-    "lazy-block-freq",
-    "opt-remark-emitter",
-    "instcombine",
-    "loop-simplify",
-    "lcssa-verification",
-    "lcssa",
-    "scalar-evolution",
-    "indvars",
-    "loop-idiom",
-    "loop-deletion",
-    "loop-unroll",
-    "mldst-motion",
-    "aa",
-    "memdep",
-    "lazy-branch-prob",
-    "lazy-block-freq",
-    "opt-remark-emitter",
-    "gvn",
-    "basicaa",
-    "aa",
-    "memdep",
-    "memcpyopt",
-    "sccp",
-    "domtree",
-    "demanded-bits",
-    "bdce",
-    "basicaa",
-    "aa",
-    "loops",
-    "lazy-branch-prob",
-    "lazy-block-freq",
-    "opt-remark-emitter",
-    "instcombine",
-    "lazy-value-info",
-    "jump-threading",
-    "lazy-value-info",
-    "correlated-propagation",
-    "domtree",
-    "basicaa",
-    "aa",
-    "memdep",
-    "dse",
-    "loops",
-    "loop-simplify",
-    "lcssa-verification",
-    "lcssa",
-    "aa",
-    "scalar-evolution",
-    "licm",
-    "postdomtree",
-    "adce",
-    "simplifycfg",
-    "domtree",
-    "basicaa",
-    "aa",
-    "loops",
-    "lazy-branch-prob",
-    "lazy-block-freq",
-    "opt-remark-emitter",
-    "instcombine",
-    "barrier",
-    "elim-avail-extern",
-    "basiccg",
-    "rpo-functionattrs",
-    "globalopt",
-    "globaldce",
-    "basiccg",
-    "globals-aa",
-    "float2int",
-    "domtree",
-    "loops",
-    "loop-simplify",
-    "lcssa-verification",
-    "lcssa",
-    "basicaa",
-    "aa",
-    "scalar-evolution",
-    "loop-rotate",
-    "loop-accesses",
-    "lazy-branch-prob",
-    "lazy-block-freq",
-    "opt-remark-emitter",
-    "loop-distribute",
-    "branch-prob",
-    "block-freq",
-    "scalar-evolution",
-    "basicaa",
-    "aa",
-    "loop-accesses",
-    "demanded-bits",
-    "lazy-branch-prob",
-    "lazy-block-freq",
-    "opt-remark-emitter",
-    "loop-vectorize",
-    "loop-simplify",
-    "scalar-evolution",
-    "aa",
-    "loop-accesses",
-    "loop-load-elim",
-    "basicaa",
-    "aa",
-    "lazy-branch-prob",
-    "lazy-block-freq",
-    "opt-remark-emitter",
-    "instcombine",
-    "simplifycfg",
-    "domtree",
-    "loops",
-    "scalar-evolution",
-    "basicaa",
-    "aa",
-    "demanded-bits",
-    "lazy-branch-prob",
-    "lazy-block-freq",
-    "opt-remark-emitter",
-    "slp-vectorizer",
-    "opt-remark-emitter",
-    "instcombine",
-    "loop-simplify",
-    "lcssa-verification",
-    "lcssa",
-    "scalar-evolution",
-    "loop-unroll",
-    "lazy-branch-prob",
-    "lazy-block-freq",
-    "opt-remark-emitter",
-    "instcombine",
-    "loop-simplify",
-    "lcssa-verification",
-    "lcssa",
-    "scalar-evolution",
-    "licm",
-    "alignment-from-assumptions",
-    "strip-dead-prototypes",
-    "globaldce",
-    "constmerge",
-    "domtree",
-    "loops",
-    "branch-prob",
-    "block-freq",
-    "loop-simplify",
-    "lcssa-verification",
-    "lcssa",
-    "basicaa",
-    "aa",
-    "scalar-evolution",
-    "branch-prob",
-    "block-freq",
-    "loop-sink",
-    "lazy-branch-prob",
-    "lazy-block-freq",
-    "opt-remark-emitter",
-    "instsimplify",
-    "div-rem-pairs",
-    "simplifycfg",
-    "verify",
-    "domtree",
-    "domtree"
-)
+val optimizations =
+    ("tti tbaa scopednoalias assumptioncachetracker targetlibinfo verify eeinstrument simplifycfg domtree sroa earlycse lowerexpect targetlibinfo tti tbaa scopednoalias assumptioncachetracker profilesummaryinfo forceattrs inferattrs callsitesplitting ipsccp calledvaluepropagation globalopt domtree mem2reg deadargelim domtree basicaa aa loops lazybranchprob lazyblockfreq optremarkemitter instcombine simplifycfg basiccg globalsaa pruneeh inline functionattrs argpromotion domtree sroa basicaa aa memoryssa earlycsememssa speculativeexecution domtree basicaa aa lazyvalueinfo jumpthreading lazyvalueinfo correlatedpropagation simplifycfg domtree basicaa aa loops lazybranchprob lazyblockfreq optremarkemitter instcombine libcallsshrinkwrap loops branchprob blockfreq lazybranchprob lazyblockfreq optremarkemitter pgomemopopt domtree basicaa aa loops lazybranchprob lazyblockfreq optremarkemitter tailcallelim simplifycfg reassociate domtree loops loopsimplify lcssaverification lcssa basicaa aa scalarevolution looprotate licm loopunswitch simplifycfg domtree basicaa aa loops lazybranchprob lazyblockfreq optremarkemitter instcombine loopsimplify lcssaverification lcssa scalarevolution indvars loopidiom loopdeletion loopunroll mldstmotion aa memdep lazybranchprob lazyblockfreq optremarkemitter gvn basicaa aa memdep memcpyopt sccp domtree demandedbits bdce basicaa aa loops lazybranchprob lazyblockfreq optremarkemitter instcombine lazyvalueinfo jumpthreading lazyvalueinfo correlatedpropagation domtree basicaa aa memdep dse loops loopsimplify lcssaverification lcssa aa scalarevolution licm postdomtree adce simplifycfg domtree basicaa aa loops lazybranchprob lazyblockfreq optremarkemitter instcombine barrier elimavailextern basiccg rpofunctionattrs globalopt globaldce basiccg globalsaa float2int domtree loops loopsimplify lcssaverification lcssa basicaa aa scalarevolution looprotate loopaccesses lazybranchprob lazyblockfreq optremarkemitter loopdistribute branchprob blockfreq scalarevolution basicaa aa loopaccesses demandedbits lazybranchprob lazyblockfreq optremarkemitter loopvectorize loopsimplify scalarevolution aa loopaccesses looploadelim basicaa aa lazybranchprob lazyblockfreq optremarkemitter instcombine simplifycfg domtree loops scalarevolution basicaa aa demandedbits lazybranchprob lazyblockfreq optremarkemitter slpvectorizer optremarkemitter instcombine loopsimplify lcssaverification lcssa scalarevolution loopunroll lazybranchprob lazyblockfreq optremarkemitter instcombine loopsimplify lcssaverification lcssa scalarevolution licm alignmentfromassumptions stripdeadprototypes globaldce constmerge domtree loops branchprob blockfreq loopsimplify lcssaverification lcssa basicaa aa scalarevolution branchprob blockfreq loopsink lazybranchprob lazyblockfreq optremarkemitter instsimplify divrempairs simplifycfg verify").split(
+        " "
+    )
+
 
 fun main(args: Array<String>) {
     var params: Map<String, List<String>> = emptyMap()
@@ -278,14 +29,15 @@ fun main(args: Array<String>) {
         }
     }
 
-    if (params.containsKey("-t")) {
-        runTests()
-    } else if (params.containsKey("-h")) {
-        showHelp()
-    } else {
-        execute(
+    when {
+        params.containsKey("-t") -> runTests()
+        params.containsKey("-h") -> showHelp()
+        else -> execute(
             params.getOrDefault("-p", emptyList()),
-            params.getOrDefault("-k", listOf("0"))[0].toInt()
+            params.getOrDefault("-k", listOf("0"))[0].toInt(),
+            params.getOrDefault("-tf", listOf("./"))[0],
+            params.getOrDefault("-bp", listOf("./"))[0],
+            params.getOrDefault("-bt", listOf("./"))[0]
         )
     }
 
@@ -304,8 +56,8 @@ fun runTests() {
         shakeRemove(
             currentOptimizations,
             Random.nextInt(1, optimizations.size - 1),
-            false,
-            false
+            isFirst = false,
+            isLast = false
         ).size
     )
     assertEquals(
@@ -327,8 +79,8 @@ fun runTests() {
         shakeModify(
             currentOptimizations,
             Random.nextInt(1, optimizations.size - 1),
-            false,
-            false
+            isFirst = false,
+            isLast = false
         ).size
     )
     assertEquals(
@@ -349,30 +101,70 @@ fun runTests() {
 }
 
 fun showHelp() {
-    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    println("Optimization Selector")
+    println("-p\tList of programs (benchmarks) that should be in bench_path and will be copied to bench_run_path then runned and its results evaluated, one by one. In case they are not on root of bench_path, it could have a prefix of dir")
+    println("-k\tTimes to try optimizing its neighbourhood before quitting and assuming a optimistic collection of optimizations")
+    println("-tf\tPath to test framework")
+    println("-bp\tPath to benchmarks (bench_path)")
+    println("-bt\tPath to the directory tf will get the benchmarks to run (bench_run_path)")
+    println("-t\tRun the tests for checking if the shaking algorithm is working fine")
+    println("-h\tShow this help message")
+    println("\n\nExample: optimizations_selector.jar -p firstProgram path/to/second/secondProgram -k 10 -tf ~/tf -bp ~/tf/Benchs/ -bt ~/tf/Benchs/MyBenchs/")
 }
 
-fun execute(programsNames: List<String>, repeatTimes: Int) {
+fun execute(
+    programsNames: List<String>,
+    repeatTimes: Int,
+    tfPath: String,
+    benchPath: String,
+    benchRunPath: String
+) {
+    val resultFile = PrintStream("Result.csv")
+    resultFile.println("Program\tBestResult\tOptimizations")
+
     programsNames.forEach {
 
-        var bestResult = playOnce(optimizations)
-        var k = 1
+        println("Starting optimization selection for $it")
 
-        while (k <= repeatTimes) {
-            val currentResult = playOnce(shake(bestResult.optimizations))
+        var k = 1
+        var tryCount = 1
+        var bestResult = playOnce(
+            optimizations,
+            tfPath,
+            it,
+            tryCount,
+            benchPath,
+            benchRunPath
+        )
+
+        while (k++ <= repeatTimes) {
+            val currentResult =
+                playOnce(
+                    shake(bestResult.optimizations),
+                    tfPath,
+                    it,
+                    tryCount,
+                    benchPath,
+                    benchRunPath
+                )
             if (currentResult.time < bestResult.time) {
                 bestResult = currentResult
+                println("New best on try $k")
                 k = 1
             }
+            tryCount++
         }
+
+        resultFile.println("$it\t${bestResult.time}\t${join(bestResult.optimizations, " ")}")
     }
+
+    resultFile.close()
 }
 
 fun shake(currentOptimizations: List<String>): List<String> {
 
     val shouldAdd = Random.nextBoolean()
     if (shouldAdd) {
-        println("Will add")
         return shakeAdd(currentOptimizations)
     }
 
@@ -382,10 +174,8 @@ fun shake(currentOptimizations: List<String>): List<String> {
     val isFirst = index == 0
     val isLast = index == currentOptimizations.size - 1
     if (shouldRemove) {
-        println("Will remove $isFirst $isLast")
         return shakeRemove(currentOptimizations, index, isFirst, isLast)
     }
-    println("Will modify, $index")
     return shakeModify(currentOptimizations, index, isFirst, isLast)
 }
 
@@ -439,7 +229,109 @@ private fun shakeRemove(
     )
 }
 
-fun playOnce(optimizations: List<String>): Result {
-    println("Size: ${optimizations.size}")
-    return Result(Random.nextInt(), optimizations)
+fun join(list: List<String>, separator: String): String {
+    var fullString = ""
+
+    for (i in 0 until list.size - 1) {
+        fullString += list[i] + separator
+    }
+
+    return fullString + list.last()
+}
+
+fun String.runCommand(
+    workingDir: File,
+    environmentVariables: Array<String>
+): InputStream {
+    val exec = getRuntime().exec(this, environmentVariables, workingDir)
+    return exec.inputStream!!
+}
+
+fun playOnce(
+    optimizations: List<String>,
+    tfPath: String,
+    programFullName: String,
+    tryCount: Int,
+    benchsPath: String,
+    benchsRunPath: String
+): Result {
+
+    val programSplitted = programFullName.split("/")
+    var programPath = benchsPath
+
+    if (programSplitted.size > 1) {
+        programPath += programSplitted.slice(0 until programSplitted.size - 1)
+            .map { "$it/" }
+            .reduce { acc, it -> "$acc$it" }
+    }
+
+    val programName = programSplitted.last()
+
+    File(benchsRunPath).deleteRecursively()
+    val benchmarkProgram = File("$programPath$programName")
+
+    if (!benchmarkProgram.isDirectory) {
+        println("Directory ${benchmarkProgram.absolutePath} not found")
+        exitProcess(0)
+    }
+
+    benchmarkProgram.copyRecursively(File("$benchsRunPath$programName"))
+
+    return getMediumResult(optimizations, tfPath, programName, tryCount)
+}
+
+private fun getMediumResult(
+    optimizations: List<String>,
+    tfPath: String,
+    programName: String,
+    tryCount: Int
+): Result {
+    val environmentVariables =
+        arrayOf("OPT=\"${join(optimizations.map { "-$it" }, " ")}\"")
+    val tfDirectory = File(tfPath)
+
+    var results = emptyList<Float>()
+
+    for (i in 1..3) {
+        "./run.sh".runCommand(
+            tfDirectory,
+            environmentVariables
+        ).bufferedReader().lines().forEach { println(it) }
+        results = results.plus(getResult(tfPath, programName, tryCount, i))
+    }
+
+    println("Results===========")
+    results.forEach{print(it)}
+    println("==================")
+
+    return Result((results.average() * 1000), optimizations)
+}
+
+private fun getResult(
+    tfPath: String,
+    programName: String,
+    tryCount: Int,
+    repetitionCount: Int
+): Float {
+    val file = File(tfPath + "run.log")
+    val scanner = Scanner(
+        file,
+        "UTF-8"
+    ).useDelimiter("\n")
+
+    val header = scanner.next().split("\t")
+    val content = scanner.next().split("\t")
+
+    val fileData = header.zip(content).toMap()
+
+    val newFile = file.copyTo(
+        File("$tfPath${programName}_${tryCount}_$repetitionCount.csv"),
+        true
+    )
+    println("$file successfully renamed to $newFile")
+
+    return fileData.getOrDefault(
+        "JobRuntime",
+        "0"
+    ).toFloat()
 }
