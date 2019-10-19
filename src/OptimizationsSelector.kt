@@ -1,5 +1,4 @@
 import java.io.File
-import java.io.InputStream
 import java.lang.Runtime.getRuntime
 import java.util.*
 import kotlin.random.Random
@@ -34,11 +33,10 @@ fun main(args: Array<String>) {
             params.getOrDefault("-p", emptyList()),
             params.getOrDefault("-k", listOf("0"))[0].toInt(),
             params.getOrDefault("-tf", listOf("./"))[0],
-            params.getOrDefault("-bp", listOf("./"))[0],
-            params.getOrDefault("-bt", listOf("./"))[0]
+            params.getOrDefault("-bp", listOf("./Benchs/"))[0],
+            params.getOrDefault("-bt", listOf("./Benchs/MeusBenchs"))[0]
         )
     }
-
 }
 
 fun runTests() {
@@ -153,7 +151,12 @@ fun execute(
             tryCount++
         }
 
-        resultFile.appendText("$it\t${bestResult.time}\t${join(bestResult.optimizations, " ")}\n")
+        resultFile.appendText(
+            "$it\t${bestResult.time}\t${join(
+                bestResult.optimizations,
+                " "
+            )}\n"
+        )
     }
 }
 
@@ -237,12 +240,17 @@ fun join(list: List<String>, separator: String): String {
     return fullString + list.last()
 }
 
-fun String.runCommand(workingDir: File, environmentVariables: Array<String>, print: Boolean = false): Int {
+fun String.runCommand(
+    workingDir: File,
+    environmentVariables: Array<String>,
+    print: Boolean = false
+): Int {
     val exec = getRuntime().exec(this, environmentVariables, workingDir)
 
-    if (print)
+    if (print) {
         exec.inputStream.bufferedReader().lines().forEach { println(it) }
-//    exec.errorStream.bufferedReader().lines().forEach{println(it)}
+        exec.errorStream.bufferedReader().lines().forEach { println(it) }
+    }
 
     while (exec.isAlive);
     return exec.exitValue()
@@ -291,22 +299,28 @@ private fun getMediumResult(
     var results = emptyList<Float>()
     val optValue = join(optimizations.map { "-$it" }, " ")
 
+    "./run.sh".runCommand(
+        tfDirectory,
+        arrayOf("OPT=$optValue", "COMPILE=1", "EXEC=0"),
+        true
+    )
     for (i in 1..3) {
-        "./run.sh".runCommand(
-            tfDirectory,
-            arrayOf("OPT=$optValue", "COMP=1", "EXEC=0")
-        )
-        File("${tfPath}run.log").delete()
-        "./run.sh".runCommand(
-            tfDirectory,
-            arrayOf("OPT=$optValue", "COMP=0", "EXEC=1")
-        )
-        results = results.plus(getResult(tfPath, programName, tryCount, i))
+        var result: Float
+        do {
+            File("${tfPath}run.log").delete()
+            "./run.sh".runCommand(
+                tfDirectory,
+                arrayOf("OPT=$optValue", "COMPILE=0", "EXEC=1")
+            )
+            result = getResult(tfPath, programName, tryCount, i)
+        } while (result <= 0)
+
+        results = results.plus(result)
     }
 
     println("Results: ${results.map { "$it " }}")
 
-    return Result((results.average() * 1000), optimizations)
+    return Result((results.average() * 1000).toInt(), optimizations)
 }
 
 private fun getResult(
@@ -326,11 +340,9 @@ private fun getResult(
 
     val fileData = header.zip(content).toMap()
 
-    val newFile = File("$tfPath/results/$programName/${tryCount}_$repetitionCount.csv")
-    if (file.renameTo(newFile))
-        println("$file successfully renamed to $newFile")
-    else
-        println("Failed on renaming $file to $newFile")
+    val newFile =
+        File("$tfPath/results/$programName/${tryCount}_$repetitionCount.csv")
+    println("$file successfully renamed to ${file.copyTo(newFile, true)}")
 
     return fileData.getOrDefault(
         "JobRuntime",
