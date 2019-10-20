@@ -29,12 +29,19 @@ fun main(args: Array<String>) {
     when {
         params.containsKey("-t") -> runTests()
         params.containsKey("-h") -> showHelp()
+        params.containsKey("-u") -> getRuntime().exec("whoami").inputStream.bufferedReader().lines().forEach {
+            println(
+                it
+            )
+        }
         else -> execute(
             params.getOrDefault("-p", emptyList()),
             params.getOrDefault("-k", listOf("0"))[0].toInt(),
             params.getOrDefault("-tf", listOf("./"))[0],
             params.getOrDefault("-bp", listOf("./Benchs/"))[0],
-            params.getOrDefault("-bt", listOf("./Benchs/MeusBenchs"))[0]
+            params.getOrDefault("-bt", listOf("./Benchs/MeusBenchs"))[0],
+            params.getOrDefault("-path", listOf(""))[0],
+            params.getOrDefault("-print", listOf("none"))[0]
         )
     }
 }
@@ -105,6 +112,12 @@ fun showHelp() {
     println("-bt\tPath to the directory tf will get the benchmarks to run (bench_run_path)")
     println("-t\tRun the tests for checking if the shaking algorithm is working fine")
     println("-h\tShow this help message")
+    println("-u\tShow the value of \"whoami\" command")
+    println("-path\tShould pass the path variable (generally \$PATH). It should include the path to ld command (/usr/bin generally)")
+    println("-print\tDefault is \"none\", wich will print only the program messages.")
+    println("\t\t\"compile\" will print the stream from running COMPILE=1")
+    println("\t\t\"exec\" will print the stream from running EXEC=1")
+    println("\t\t\"all\" will print all messages from the tf execution")
     println("\n\nExample: optimizations_selector.jar -p firstProgram path/to/second/secondProgram -k 10 -tf /home/username/tf -bp /home/username/tf/Benchs/ -bt /home/username/tf/Benchs/MyBenchs/")
 }
 
@@ -113,25 +126,33 @@ fun execute(
     repeatTimes: Int,
     tfPath: String,
     benchPath: String,
-    benchRunPath: String
+    benchRunPath: String,
+    pathVariable: String,
+    printTF: String
 ) {
     val resultFile = File("Result.csv")
-    resultFile.writeText("Program\tBestResult\tOptimizations\n")
+    resultFile.writeText("Program\tFirstResult\tBestResult\tImprovement\tTries\tOptimizations\n")
 
+    val printExec = printTF == "all" || printTF == "exec"
+    val printCompile = printTF == "all" || printTF == "compile"
     programsNames.forEach {
 
         println("Starting optimization selection for $it")
 
         var k = 1
         var tryCount = 1
-        var bestResult = playOnce(
+        val firstResult = playOnce(
             optimizations,
             tfPath,
             it,
             tryCount,
             benchPath,
-            benchRunPath
+            benchRunPath,
+            pathVariable,
+            printExec,
+            printCompile
         )
+        var bestResult = firstResult
 
         while (k++ <= repeatTimes) {
             val currentResult =
@@ -141,7 +162,10 @@ fun execute(
                     it,
                     tryCount,
                     benchPath,
-                    benchRunPath
+                    benchRunPath,
+                    pathVariable,
+                    printExec,
+                    printCompile
                 )
             if (currentResult.time < bestResult.time) {
                 bestResult = currentResult
@@ -152,7 +176,7 @@ fun execute(
         }
 
         resultFile.appendText(
-            "$it\t${bestResult.time}\t${join(
+            "$it\t${firstResult.time}\t${bestResult.time}\t${firstResult.time/bestResult.time}\t${tryCount}\t${join(
                 bestResult.optimizations,
                 " "
             )}\n"
@@ -262,7 +286,10 @@ fun playOnce(
     programFullName: String,
     tryCount: Int,
     benchsPath: String,
-    benchsRunPath: String
+    benchsRunPath: String,
+    pathVariable: String,
+    printExec: Boolean,
+    printCompile: Boolean
 ): Result {
 
     val programSplitted = programFullName.split("/")
@@ -286,14 +313,25 @@ fun playOnce(
 
     benchmarkProgram.copyRecursively(File("$benchsRunPath$programName"))
 
-    return getMediumResult(optimizations, tfPath, programName, tryCount)
+    return getMediumResult(
+        optimizations,
+        tfPath,
+        programName,
+        tryCount,
+        pathVariable,
+        printExec,
+        printCompile
+    )
 }
 
 private fun getMediumResult(
     optimizations: List<String>,
     tfPath: String,
     programName: String,
-    tryCount: Int
+    tryCount: Int,
+    pathVariable: String,
+    printExec: Boolean,
+    printCompile: Boolean
 ): Result {
     val tfDirectory = File(tfPath)
     var results = emptyList<Float>()
@@ -301,8 +339,8 @@ private fun getMediumResult(
 
     "./run.sh".runCommand(
         tfDirectory,
-        arrayOf("OPT=$optValue", "COMPILE=1", "EXEC=0"),
-        true
+        arrayOf("OPT=$optValue", "COMPILE=1", "EXEC=0", "PATH=$pathVariable"),
+        printCompile
     )
     for (i in 1..3) {
         var result: Float
@@ -310,7 +348,13 @@ private fun getMediumResult(
             File("${tfPath}run.log").delete()
             "./run.sh".runCommand(
                 tfDirectory,
-                arrayOf("OPT=$optValue", "COMPILE=0", "EXEC=1")
+                arrayOf(
+                    "OPT=$optValue",
+                    "COMPILE=0",
+                    "EXEC=1",
+                    "PATH=$pathVariable"
+                ),
+                printExec
             )
             result = getResult(tfPath, programName, tryCount, i)
         } while (result <= 0)
